@@ -5,7 +5,6 @@ use warnings;
 no warnings 'once';
 
 use Test::More tests => 2;
-use Test::Differences qw(eq_or_diff);
 
 use lib '../lib';
 use Hash::MostUtils qw(hashapply n_apply);
@@ -20,8 +19,8 @@ use Hash::MostUtils qw(hashapply n_apply);
 		9 => 10,
 	);
 	my @got = hashapply { $::a *= 2; $::b *= 3; } @orig;
-	eq_or_diff(\@orig, [ 1 .. 10 ]);
-	eq_or_diff( \@got, [
+	is_deeply(\@orig, [ 1 .. 10 ]);
+	is_deeply( \@got, [
 		2  => 6,
 		6  => 12,
 		10 => 18,
