@@ -64,6 +64,9 @@ sub _n_collect($) {
 				# Aliasing in main::  allows you to refer to variables $c and onwards as $::c.
 				# Aliasing in $caller allows you to refer to variables $c and onwards as $whatever::package::c.
 				${"::$n[$_]"} = ${"$caller\::$n[$_]"} = $chunk[$_];
+
+				# Keep a reference to $::a (etc.) and pass them in to the $collector; this allows $code to mutate
+				# $::a (etc) and signal the changed values back to $collector.
 				push @aliases, \${"::$n[$_]"};
 			}
 			push @out, $collector->($code, \@chunk, \@aliases);             # ...and apply $code.
