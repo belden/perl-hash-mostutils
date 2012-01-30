@@ -7,7 +7,7 @@ no warnings 'once';
 use Test::More tests => 4;
 
 use lib '../lib';
-use Hashutils qw(hashmap n_map);
+use Hash::MostUtils qw(hashmap n_map);
 
 # hashmap
 {
@@ -21,8 +21,8 @@ use Hashutils qw(hashmap n_map);
 
 # n_map
 {
-	my @by_three = Hashutils::n_map(3, sub { [$::a, $::b, $::c] }, (1..9));
-	is_deeply( \@by_three, [[1..3], [4..6], [7..9]], 'can call Hashutils::n_map directly' );
+	my @by_three = Hash::MostUtils::n_map(3, sub { [$::a, $::b, $::c] }, (1..9));
+	is_deeply( \@by_three, [[1..3], [4..6], [7..9]], 'can call Hash::MostUtils::n_map directly' );
 }
 
 # we don't nuke your existing variables

@@ -6,7 +6,7 @@ use warnings;
 use Test::More tests => 2;
 
 use lib '../lib';
-use Hashutils qw(lvalues lkeys);
+use Hash::MostUtils qw(lvalues lkeys);
 
 # perl's built-in values() function only operates on hashes. lvalues() acts like values(), but for lists.
 {

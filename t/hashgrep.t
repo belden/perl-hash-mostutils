@@ -7,7 +7,7 @@ no warnings 'once';
 use Test::More tests => 4;
 
 use lib '../lib';
-use Hashutils qw(hashgrep n_grep);
+use Hash::MostUtils qw(hashgrep n_grep);
 
 # hashgrep
 {
@@ -25,7 +25,7 @@ use Hashutils qw(hashgrep n_grep);
 
 # n_grep
 {
-	my (@thorax) = Hashutils::n_grep(3, sub { $::a == 4 && $::b == 5 && $::c == 6 }, (1..9));
+	my (@thorax) = Hash::MostUtils::n_grep(3, sub { $::a == 4 && $::b == 5 && $::c == 6 }, (1..9));
 	is_deeply( \@thorax, [4, 5, 6], 'can grep out the middle three numbers' );
 }
 

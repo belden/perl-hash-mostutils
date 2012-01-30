@@ -3,9 +3,9 @@ use warnings;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-	NAME                => 'Hashutils',
+	NAME                => 'Hash::MostUtils',
 	AUTHOR              => q{Belden Lyman <belden@shutterstock.com>},
-	VERSION_FROM        => 'lib/Hashutils.pm',
+	VERSION_FROM        => 'lib/Hash/MostUtils.pm',
 	ABSTRACT            => 'Pairwise list manipulators',
 	($ExtUtils::MakeMaker::VERSION >= 6.3002
 		? ('LICENSE'=> 'perl')

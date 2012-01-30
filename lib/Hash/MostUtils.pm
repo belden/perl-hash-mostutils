@@ -1,4 +1,4 @@
-package Hashutils;
+package Hash::MostUtils;
 
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ our $VERSION = 0.01;
 
 =head1 NAME
 
-Hashutils - A collection of tools for operating pairwise on lists.
+Hash::MostUtils - Yet another collection of tools for operating pairwise on lists.
 
 =head1 SYNOPSIS
 
@@ -250,5 +250,5 @@ Belden Lyman <belden@shutterstock.com>
 
 =head1 ACKNOWLEDGEMENTS
 
-The names and behaviors of 'hashmap', 'hashgrep', 'lkeys', and 'lvalues' were initially developed at
-AirWave Wireless. I've re-implemented them in-the-raw here.
+The names and behaviors of 'hashmap', 'hashgrep', 'hashapply', 'lkeys', and 'lvalues' were initially
+developed at AirWave Wireless. I've re-implemented them here.

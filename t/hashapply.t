@@ -8,7 +8,7 @@ use Test::More tests => 2;
 use Test::Differences qw(eq_or_diff);
 
 use lib '../lib';
-use Hashutils qw(hashapply n_apply);
+use Hash::MostUtils qw(hashapply n_apply);
 
 # hashapply
 {
