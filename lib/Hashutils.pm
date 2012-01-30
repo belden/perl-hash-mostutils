@@ -5,7 +5,7 @@ use warnings;
 
 use base qw(Exporter);
 
-our @EXPORT_OK = qw(hashmap hashgrep n_map n_grep lvalues lkeys);
+our @EXPORT_OK = qw(hashmap hashgrep hashapply n_map n_grep n_apply lvalues lkeys);
 our $VERSION = 0.01;
 
 =head1 NAME
@@ -43,7 +43,7 @@ sub _n_collect($) {
 			Carp::confess "your input is insane: can't evenly slice " . @_ . " elements into $n-sized chunks\n";
 		}
 
-		# reserve some namespace back in the callpackage
+		# these'll reserve some namespace back in the callpackage
 		my @n = ('a' .. 'z');
 
 		# stash old values back in callpackage *and* in main. If called from main::, this comes down to:
@@ -52,19 +52,21 @@ sub _n_collect($) {
 		my $caller = caller;
 		no strict 'refs';
 		foreach ((@n[ 0 .. $n-1 ])) {
-      local ${"$caller\::$_"};
-      local ${"::$_"};
-    }
+			local ${"$caller\::$_"};
+			local ${"::$_"};
+		}
 
 		my @out;
 		while (my @chunk = splice @_, 0, $n) {  # build up each set...
+			my @aliases;
 			foreach (0 .. $#chunk) {
 				# ...assign values from @_ back to localized variables in $caller *and* in 'main::'.
 				# Aliasing in main::  allows you to refer to variables $c and onwards as $::c.
 				# Aliasing in $caller allows you to refer to variables $c and onwards as $whatever::package::c.
-        ${"::$n[$_]"} = ${"$caller\::$n[$_]"} = $chunk[$_];
-      }
-			push @out, $collector->($code, @chunk);             # ...and apply $code.
+				${"::$n[$_]"} = ${"$caller\::$n[$_]"} = $chunk[$_];
+				push @aliases, \${"::$n[$_]"};
+			}
+			push @out, $collector->($code, \@chunk, \@aliases);             # ...and apply $code.
 		}
 
 		return @out;
@@ -123,9 +125,9 @@ Like perl's built-in C<map>, this function maintains the order of LIST.
 
 =head2 n_grep N, CODEREF, LIST
 
-Apply CODEREF to LIST, operating in N-sized chunks. Within the context of CODEREF, values of LIST
-will be selected and aliased. Given N of 5, variable names would be $a, $b, $c, $d, and $e. In order
-to prevent 'strict refs' from complaining, you should write CODEREF to refer to $::a, $::b, $::c,
+Find items in LIST that match CODEREF, operating in N-sized chunks. Within the context of CODEREF, values
+of LIST will be selected and aliased. Given N of 5, variable names would be $a, $b, $c, $d, and $e. In
+order to prevent 'strict refs' from complaining, you should write CODEREF to refer to $::a, $::b, $::c,
 $::d, and $::e (for N == 5).
 
 Actually, that's a lie: it's only $c .. $e that would need to be $::c, $::d, $::e. $a and $b are
@@ -152,8 +154,26 @@ sub n_grep ($&@) {
 	# the comments in n_map() apply here as well.
 
 	my $collector = sub {
-		my ($code, @vals) = @_;
-		return $code->() ? @vals : ();
+		my ($code, $vals, $aliases) = @_;
+		return $code->() ? @$vals : ();
+	};
+	unshift @_, $collector;
+
+	goto &{_n_collect($n)};
+}
+
+=head2 n_apply N, CODEREF, LIST
+
+Apply CODEREF to LIST, operating in N-sized chunks. See the discussion of C<hashapply>. See also
+variable names as discussed in C<n_map> and C<n_grep>.
+
+=cut
+sub n_apply {
+	my $n = shift;
+	my $collector = sub {
+		my ($code, $vals, $aliases) = @_;
+		$code->();
+		return map { $$_ } @$aliases;
 	};
 	unshift @_, $collector;
 
@@ -173,6 +193,31 @@ Like perl's built-in C<grep>, this function maintains the order of LIST.
 =cut
 # hashgrep BLOCK, LIST is a convenient alias for Hashutils::n_grep(2, CODEREF, LIST);
 *hashgrep = sub(&@) { unshift @_, 2; goto &n_grep };
+
+=head2 hashapply BLOCK, LIST
+
+Apply BLOCK of code to LIST. apply can be written as map:
+
+=over 4
+
+my @words = qw(apple banana cherimoya);
+my @clean1 = map { tr/aeiou//d; $_ } @words;  # @clean1 = @words = qw(ppl bnn chrmy);
+
+@words = qw(apple banana cherimoya);
+my @clean2 = apply { tr/aeiou//d } @words;    # @clean2 = qw(ppl bnn chrmy); @words = qw(apple banana cherimoya);
+
+=back
+
+Note that C<apply> does not transform the original data, whereas C<map> does.
+
+Note that C<apply> does not need to explicitly return $_, whereas C<map> does.
+
+C<hashapply> works similar to C<apply> except it processes lists pairwise. Like the other C<hash...> functions,
+this maintains the original order of LIST. Like C<apply>, C<hashapply> will not transform the original LIST.
+
+=cut
+# hashapply BLOCK, LIST is a convenient alias for Hashutils::n_apply(2, CODEREF, LIST);
+*hashapply = sub (&@) { unshift @_, 2; goto &n_apply };
 
 =head2 lkeys LIST
 
