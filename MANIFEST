@@ -1,0 +1,8 @@
+lib/Hash/MostUtils.pm
+README
+MANIFEST
+t/hashgrep.t
+t/hashapply.t
+t/hashmap.t
+t/lfuncs.t
+Makefile.PL
