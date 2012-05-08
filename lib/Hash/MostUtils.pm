@@ -5,6 +5,8 @@ use warnings;
 
 use base qw(Exporter);
 
+use Carp qw(confess);
+
 our @EXPORT_OK = qw(hashmap hashgrep hashapply n_map n_grep n_apply lvalues lkeys);
 our $VERSION = 0.03;
 
@@ -39,8 +41,7 @@ sub _n_collect($) {
 		my $collector = shift;
 		my $code = shift;
 		if (@_ % $n != 0) {
-			require Carp;
-			Carp::confess "your input is insane: can't evenly slice " . @_ . " elements into $n-sized chunks\n";
+			confess("your input is insane: can't evenly slice " . @_ . " elements into $n-sized chunks\n");
 		}
 
 		# these'll reserve some namespace back in the callpackage
