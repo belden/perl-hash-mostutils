@@ -6,3 +6,4 @@ t/hashapply.t
 t/hashmap.t
 t/lfuncs.t
 Makefile.PL
+t/hashslice.t
