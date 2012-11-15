@@ -10,6 +10,10 @@ WriteMakefile(
 	($ExtUtils::MakeMaker::VERSION >= 6.3002
 		? ('LICENSE'=> 'perl')
 		: ()),
+	PREREQ_PM => {
+		'Shutterstock::Test'				=> 0,
+		'Test::Exception'						=> 0,
+	},
 	PL_FILES            => {},
 	dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 );

@@ -7,8 +7,8 @@ use base qw(Exporter);
 
 use Carp qw(confess);
 
-our @EXPORT_OK = qw(hashmap hashgrep hashapply n_map n_grep n_apply lvalues lkeys);
-our $VERSION = 0.03;
+our @EXPORT_OK = qw(hashmap hashgrep hashapply n_map n_grep n_apply lvalues lkeys hash_slice_of hash_slice_by);
+our $VERSION = 0.04;
 
 =head1 NAME
 
@@ -241,6 +241,31 @@ the same functionality for lists.
 # 'perldoc perlvar': decrementing $| flips it between 0 and 1.
 sub lvalues { local $|; return grep { $|-- == 1 } @_ }
 
+
+=head2 hash_slice_of HASHREF, LIST
+
+Looks into a hash and extracts the values of the keys named in LIST.
+If a key in LIST is not present in HASHREF, returns undefined.
+
+=cut
+
+sub hash_slice_of {
+	my ($ref, @keys) = @_;
+	return map { ($_ => $ref->{$_}) } @keys;
+}
+
+=head2 hash_slice_by OBJECT, LIST
+
+Calls the methods named in LIST on OBJECT and returns a hash of the results.
+(If a method in LIST does not exist on OBJECT, you will get an assertion.)
+
+=cut
+
+sub hash_slice_by {
+	my ($obj, @methods) = @_;
+	return map { ($_ => $obj->$_) } @methods;
+}
+
 1;
 
 __END__
@@ -251,5 +276,5 @@ Belden Lyman <belden@shutterstock.com>
 
 =head1 ACKNOWLEDGEMENTS
 
-The names and behaviors of 'hashmap', 'hashgrep', 'hashapply', 'lkeys', and 'lvalues' were initially
+The names and behaviors of most of these functions were initially
 developed at AirWave Wireless. I've re-implemented them here.
