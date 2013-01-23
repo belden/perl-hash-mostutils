@@ -11,9 +11,9 @@ WriteMakefile(
 		? ('LICENSE'=> 'perl')
 		: ()),
 	PREREQ_PM => {
-		'Shutterstock::Test'				=> 0,
 		'Test::Exception'						=> 0,
 	},
+	LICENSE => 'perl',
 	PL_FILES            => {},
 	dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 );

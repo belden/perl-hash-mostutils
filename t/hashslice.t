@@ -4,10 +4,8 @@ use strict;
 use warnings;
 
 use Test::More tests => 4;
-use Test::Exception;
 
 use lib grep { -d } qw(../lib ./lib);
-use Shutterstock::Test qw(deep_ok);
 use Hash::MostUtils qw(hash_slice_of hash_slice_by);
 
 {
@@ -35,20 +33,22 @@ my $stub = stub->new(
 	%common,
   _baz => 211,
 );
-deep_ok( +{hash_slice_of($stub, qw(foo bar baz))}, {
+is_deeply( +{hash_slice_of($stub, qw(foo bar baz))}, {
 	%common,
 	baz => undef,
 }, 'hash_slice_of looks inside of hash references' );
 ok( ! exists $stub->{baz}, "We didn't autovivify missing keys into the original reference" );
 
-deep_ok( +{hash_slice_by($stub, qw(foo bar baz))}, {
+is_deeply( +{hash_slice_by($stub, qw(foo bar baz))}, {
 	%common,
 	baz => 211,
 }, 'hash_slice_by calls methods on the given object' );
 
 
 my $thing = somewhere->new(joola => 'Quickel');
-dies_ok {
+local $@;
+my $ok = eval {
 	hash_slice_by($thing, qw(Oscan));
 	1;
-} 'hash_slice_by raises assertions when you try to call methods that don\'t exist';
+};
+ok( ! $ok && length($@), "hash_slice_by raises assertions when you try to call methods that don't exist" );
