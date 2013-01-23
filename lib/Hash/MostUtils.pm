@@ -7,7 +7,18 @@ use base qw(Exporter);
 
 use Carp qw(confess);
 
-our @EXPORT_OK = qw(hashmap hashgrep hashapply n_map n_grep n_apply lvalues lkeys hash_slice_of hash_slice_by);
+our @EXPORT_OK = qw(
+  lvalues
+  lkeys
+  hash_slice_of
+  hash_slice_by
+  hashmap
+  hashgrep
+  hashapply
+  n_map
+  n_grep
+  n_apply
+);
 our $VERSION = 0.04;
 
 sub _n_collect($) {
