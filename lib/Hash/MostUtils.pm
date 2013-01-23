@@ -99,7 +99,7 @@ sub n_apply {
 # hashapply BLOCK, LIST is a convenient alias for Hashutils::n_apply(2, CODEREF, LIST);
 *hashapply = sub (&@) { unshift @_, 2; goto &n_apply };
 
-# 'perldoc perlvar': decrementing $| flips it between 0 and 1.
+# decrementing $| flips it between 0 and 1
 sub lkeys   { local $|; return grep { $|-- == 0 } @_ }
 sub lvalues { local $|; return grep { $|-- == 1 } @_ }
 
@@ -127,13 +127,19 @@ Hash::MostUtils - Yet another collection of tools for operating pairwise on list
 =over 4
 
   my @found_and_transformed =
-    hashmap { uc($b) => 100 + $a }
-    hashgrep { $a < 100 && $b =~ /[aeiou]/i } (
-      1 => 'cwm',
-      2 => 'apple',
-      100 => 'cherimoya',
-    );
+      hashmap { uc($b) => 100 + $a }
+      hashgrep { $a < 100 && $b =~ /[aeiou]/i } (
+          1 => 'cwm',
+          2 => 'apple',
+          100 => 'cherimoya',
+      );
 
+  my @keys = lkeys @found_and_transformed;
+  my @vals = lvalues @found_and_transformed;
+  foreach my $key (@keys) {
+      my $value = shift @vals;
+      print "$key => $val\n";
+  }
 
 =head1 EXPORTS
 
@@ -253,9 +259,13 @@ Calls the methods named in LIST on OBJECT and returns a hash of the results.
 
 =head1 AUTHOR
 
-Belden Lyman <belden@shutterstock.com>
+Belden Lyman <belden@cpan.org>
 
 =head1 ACKNOWLEDGEMENTS
 
 The names and behaviors of most of these functions were initially
-developed at AirWave Wireless. I've re-implemented them here.
+developed at AirWave Wireless, Inc. I've re-implemented them here.
+
+=head1 LICENSE
+
+You may use and distribute this software under the same terms as Perl itself.
