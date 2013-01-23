@@ -10,31 +10,6 @@ use Carp qw(confess);
 our @EXPORT_OK = qw(hashmap hashgrep hashapply n_map n_grep n_apply lvalues lkeys hash_slice_of hash_slice_by);
 our $VERSION = 0.04;
 
-=head1 NAME
-
-Hash::MostUtils - Yet another collection of tools for operating pairwise on lists.
-
-=head1 SYNOPSIS
-
-=over 4
-
-  my @found_and_transformed =
-    hashmap { uc($b) => 100 + $a }
-    hashgrep { $a < 100 && $b =~ /[aeiou]/i } (
-      1 => 'cwm',
-      2 => 'apple',
-      100 => 'cherimoya',
-    );
-
-
-=cut
-
-=head1 EXPORTS
-
-By default, none. On request, C<hashmap>, C<hashgrep>, C<n_map>, C<n_grep>, C<lkeys>, C<lvalues>.
-
-=cut
-
 sub _n_collect($) {
 	my ($n) = @_;
 	return sub(&@) {
@@ -77,6 +52,92 @@ sub _n_collect($) {
 	};
 }
 
+sub n_map ($&@) {
+	# Usually I don't mutate @_. Here I deliberately modify @_ for the upcoming non-obvious goto-&NAME.
+	my $n = shift;
+	my $collector = sub { return $_[0]->() };
+	unshift @_, $collector;
+
+	# Using a "safe goto" allows n_map() to remove itself from the callstack, which allows _n_collect()
+	# to see the correct caller.
+	#
+	# 'perldoc -f goto' for why this is a safe goto.
+	goto &{_n_collect($n)};
+}
+
+*hashmap = sub(&@) { unshift @_, 2; goto &n_map };
+
+sub n_grep ($&@) {
+	my $n = shift;
+
+	# the comments in n_map() apply here as well.
+
+	my $collector = sub {
+		my ($code, $vals, $aliases) = @_;
+		return $code->() ? @$vals : ();
+	};
+	unshift @_, $collector;
+
+	goto &{_n_collect($n)};
+}
+
+sub n_apply {
+	my $n = shift;
+	my $collector = sub {
+		my ($code, $vals, $aliases) = @_;
+		$code->();
+		return map { $$_ } @$aliases;
+	};
+	unshift @_, $collector;
+
+	goto &{_n_collect($n)};
+}
+
+# hashgrep BLOCK, LIST is a convenient alias for Hashutils::n_grep(2, CODEREF, LIST);
+*hashgrep = sub(&@) { unshift @_, 2; goto &n_grep };
+
+# hashapply BLOCK, LIST is a convenient alias for Hashutils::n_apply(2, CODEREF, LIST);
+*hashapply = sub (&@) { unshift @_, 2; goto &n_apply };
+
+# 'perldoc perlvar': decrementing $| flips it between 0 and 1.
+sub lkeys   { local $|; return grep { $|-- == 0 } @_ }
+sub lvalues { local $|; return grep { $|-- == 1 } @_ }
+
+
+sub hash_slice_of {
+	my ($ref, @keys) = @_;
+	return map { ($_ => $ref->{$_}) } @keys;
+}
+
+sub hash_slice_by {
+	my ($obj, @methods) = @_;
+	return map { ($_ => $obj->$_) } @methods;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+Hash::MostUtils - Yet another collection of tools for operating pairwise on lists.
+
+=head1 SYNOPSIS
+
+=over 4
+
+  my @found_and_transformed =
+    hashmap { uc($b) => 100 + $a }
+    hashgrep { $a < 100 && $b =~ /[aeiou]/i } (
+      1 => 'cwm',
+      2 => 'apple',
+      100 => 'cherimoya',
+    );
+
+
+=head1 EXPORTS
+
+By default, none. On request, C<hashmap>, C<hashgrep>, C<n_map>, C<n_grep>, C<lkeys>, C<lvalues>.
 
 =head2 n_map N, CODEREF, LIST
 
@@ -100,20 +161,6 @@ magical to Perl, but the shift from $a and $b to $::c here looks pretty bad:
 
 LIST must be evenly divisible by N.
 
-=cut
-sub n_map ($&@) {
-	# Usually I don't mutate @_. Here I deliberately modify @_ for the upcoming non-obvious goto-&NAME.
-	my $n = shift;
-	my $collector = sub { return $_[0]->() };
-	unshift @_, $collector;
-
-	# Using a "safe goto" allows n_map() to remove itself from the callstack, which allows _n_collect()
-	# to see the correct caller.
-	#
-	# 'perldoc -f goto' for why this is a safe goto.
-	goto &{_n_collect($n)};
-}
-
 =head2 hashmap BLOCK, LIST
 
 C<hashmap> is simply a prototyped alias for n_map(2, CODEREF, LIST), so all of the documentation to
@@ -123,9 +170,6 @@ C<n_map> applies here.
 are available as $b.
 
 Like perl's built-in C<map>, this function maintains the order of LIST.
-
-=cut
-*hashmap = sub(&@) { unshift @_, 2; goto &n_map };
 
 =head2 n_grep N, CODEREF, LIST
 
@@ -151,38 +195,10 @@ magical to Perl, but the shift from $a and $b to $::c here looks pretty bad:
 
 LIST must be evenly divisible by N.
 
-=cut
-sub n_grep ($&@) {
-	my $n = shift;
-
-	# the comments in n_map() apply here as well.
-
-	my $collector = sub {
-		my ($code, $vals, $aliases) = @_;
-		return $code->() ? @$vals : ();
-	};
-	unshift @_, $collector;
-
-	goto &{_n_collect($n)};
-}
-
 =head2 n_apply N, CODEREF, LIST
 
 Apply CODEREF to LIST, operating in N-sized chunks. See the discussion of C<hashapply>. See also
 variable names as discussed in C<n_map> and C<n_grep>.
-
-=cut
-sub n_apply {
-	my $n = shift;
-	my $collector = sub {
-		my ($code, $vals, $aliases) = @_;
-		$code->();
-		return map { $$_ } @$aliases;
-	};
-	unshift @_, $collector;
-
-	goto &{_n_collect($n)};
-}
 
 =head2 hashgrep BLOCK, LIST
 
@@ -193,10 +209,6 @@ to C<n_grep> applies here.
 are available as $b.
 
 Like perl's built-in C<grep>, this function maintains the order of LIST.
-
-=cut
-# hashgrep BLOCK, LIST is a convenient alias for Hashutils::n_grep(2, CODEREF, LIST);
-*hashgrep = sub(&@) { unshift @_, 2; goto &n_grep };
 
 =head2 hashapply BLOCK, LIST
 
@@ -219,56 +231,25 @@ Note that C<apply> does not need to explicitly return $_, whereas C<map> does.
 C<hashapply> works similar to C<apply> except it processes lists pairwise. Like the other C<hash...> functions,
 this maintains the original order of LIST. Like C<apply>, C<hashapply> will not transform the original LIST.
 
-=cut
-# hashapply BLOCK, LIST is a convenient alias for Hashutils::n_apply(2, CODEREF, LIST);
-*hashapply = sub (&@) { unshift @_, 2; goto &n_apply };
-
 =head2 lkeys LIST
 
 Return the "keys" of LIST. perl's built-in keys() function only operates on hashes; lkeys() offers
 the same functionality for lists.
-
-=cut
-# Using $| as a piddle; 'perldoc perlvar'.
-sub lkeys { local $|; return grep { $|-- == 0 } @_ }
 
 =head2 lvalues LIST
 
 Return the "values" of LIST. perl's built-in values() function only operates on hashes; lvalues() offers
 the same functionality for lists.
 
-=cut
-# 'perldoc perlvar': decrementing $| flips it between 0 and 1.
-sub lvalues { local $|; return grep { $|-- == 1 } @_ }
-
-
 =head2 hash_slice_of HASHREF, LIST
 
 Looks into a hash and extracts the values of the keys named in LIST.
 If a key in LIST is not present in HASHREF, returns undefined.
 
-=cut
-
-sub hash_slice_of {
-	my ($ref, @keys) = @_;
-	return map { ($_ => $ref->{$_}) } @keys;
-}
-
 =head2 hash_slice_by OBJECT, LIST
 
 Calls the methods named in LIST on OBJECT and returns a hash of the results.
 (If a method in LIST does not exist on OBJECT, you will get an assertion.)
-
-=cut
-
-sub hash_slice_by {
-	my ($obj, @methods) = @_;
-	return map { ($_ => $obj->$_) } @methods;
-}
-
-1;
-
-__END__
 
 =head1 AUTHOR
 
