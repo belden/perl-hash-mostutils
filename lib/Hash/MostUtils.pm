@@ -4,6 +4,7 @@ package Hash::MostUtils;
 use base qw(Exporter);
 
 use Carp qw(confess);
+use Hash::MostUtils::leach qw(n_each leach);
 
 our @EXPORT_OK = qw(
   lvalues
@@ -113,31 +114,6 @@ sub n_apply {
 # decrementing $| flips it between 0 and 1
 sub lkeys   { local $|; return grep { $|-- == 0 } @_ }
 sub lvalues { local $|; return grep { $|-- == 1 } @_ }
-
-{
-	my %end;
-
-	# n-ary each for lists; the (+) prototype is courtesy of 'print prototype q,CORE::splice,'
-	# (I'll be honest, I can only guess what (+) means)
-	sub n_each ($+) {
-		my $n = shift;
-		my $data = shift;
-
-		my $ident = "$data";
-
-		return () if $#{$data} < $end{$ident} || 0;
-
-		$end{$ident} += $n;
-		return @{$data}[$end{$ident} - $n .. $end{$ident} - 1];
-	}
-}
-
-# listwise each: it's n_each, with N of 2.
-sub leach (+) {
-	unshift @_, 2;
-	goto &n_each;
-}
-
 
 sub hash_slice_of {
 	my ($ref, @keys) = @_;
