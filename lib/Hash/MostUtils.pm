@@ -1,8 +1,6 @@
-package Hash::MostUtils;
-
 use strict;
 use warnings;
-
+package Hash::MostUtils;
 use base qw(Exporter);
 
 use Carp qw(confess);
@@ -116,16 +114,22 @@ sub n_apply {
 sub lkeys   { local $|; return grep { $|-- == 0 } @_ }
 sub lvalues { local $|; return grep { $|-- == 1 } @_ }
 
-# n-ary each for lists; the (+) prototype is courtesy of 'print prototype q,CORE::splice,'
-# (I'll be honest, I can only guess what (+) means)
-sub n_each ($+) {
-	my $n = shift;
-	require Hash::MostUtils::leach;
-	my $leach = Hash::MostUtils::leach->new(
-		data => shift,
-		n => $n,
-	);
-	return $leach->next_set;
+{
+	my %end;
+
+	# n-ary each for lists; the (+) prototype is courtesy of 'print prototype q,CORE::splice,'
+	# (I'll be honest, I can only guess what (+) means)
+	sub n_each ($+) {
+		my $n = shift;
+		my $data = shift;
+
+		my $ident = "$data";
+
+		return () if $#{$data} < $end{$ident} || 0;
+
+		$end{$ident} += $n;
+		return @{$data}[$end{$ident} - $n .. $end{$ident} - 1];
+	}
 }
 
 # listwise each: it's n_each, with N of 2.
@@ -133,6 +137,7 @@ sub leach (+) {
 	unshift @_, 2;
 	goto &n_each;
 }
+
 
 sub hash_slice_of {
 	my ($ref, @keys) = @_;
