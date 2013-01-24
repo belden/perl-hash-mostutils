@@ -10,11 +10,13 @@ use Carp qw(confess);
 our @EXPORT_OK = qw(
   lvalues
   lkeys
+	leach
   hash_slice_of
   hash_slice_by
   hashmap
   hashgrep
   hashapply
+	n_each
   n_map
   n_grep
   n_apply
@@ -114,6 +116,23 @@ sub n_apply {
 sub lkeys   { local $|; return grep { $|-- == 0 } @_ }
 sub lvalues { local $|; return grep { $|-- == 1 } @_ }
 
+# n-ary each for lists; the (+) prototype is courtesy of 'print prototype q,CORE::splice,'
+# (I'll be honest, I can only guess what (+) means)
+sub n_each ($+) {
+	my $n = shift;
+	require Hash::MostUtils::leach;
+	my $leach = Hash::MostUtils::leach->new(
+		data => shift,
+		n => $n,
+	);
+	return $leach->next_set;
+}
+
+# listwise each: it's n_each, with N of 2.
+sub leach (+) {
+	unshift @_, 2;
+	goto &n_each;
+}
 
 sub hash_slice_of {
 	my ($ref, @keys) = @_;
