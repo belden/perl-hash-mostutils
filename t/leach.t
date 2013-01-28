@@ -3,11 +3,11 @@
 use strict;
 use warnings; no warnings 'once';
 
-use Test::More tests => 4;
+use Test::More tests => 6;
 
-use lib grep { -d } qw(../lib ./lib);
+use lib grep { -d } qw(../lib ./lib ./t/lib);
 use Hash::MostUtils qw(leach hashmap n_each n_map);
-eval "use Test::Easy qw(deep_ok); 1" || do { *deep_ok = \&is_deeply };
+use Test::Easy qw(deep_ok);
 
 {
 	my @list = (1..10);
@@ -15,7 +15,19 @@ eval "use Test::Easy qw(deep_ok); 1" || do { *deep_ok = \&is_deeply };
 	while (my ($k, $v) = leach @list) {
 		push @got, [$k, $v];
 	}
-	deep_ok( \@got, [hashmap { [$a, $b] } @list], 'list-each works' );
+	deep_ok( \@got, [hashmap { [$a, $b] } @list], 'list-each works for arrays' );
+}
+
+# You can't say:
+#    my ($first, $second) = leach 'a'..'f';
+# But don't worry, you also can't say:
+#    my @one_to_ten = splice 'b'..'f', 0, 0, 'a';
+{
+	local $. = 0; # the following splice() causes a bogus uninitialized-$. warning
+	my $splice_error = do { local $@; eval { () = splice 2..10, 0, 0, 10 }; $@ };
+	my $leach_error  = do { local $@; eval { () = leach 1..2 }; $@ };
+	like( $splice_error, qr/ARRAY ref/, 'got some error about array references to splice' );
+	like( $leach_error, qr/ARRAY ref/, 'got some error about array references to leach' );
 }
 
 {
@@ -36,4 +48,4 @@ eval "use Test::Easy qw(deep_ok); 1" || do { *deep_ok = \&is_deeply };
 	}
 	deep_ok( \@got, [[1, 2]], 'mutating @list updated $leach object' );
 	deep_ok( \@list, [], 'we set @list to ()' );
-};
+}

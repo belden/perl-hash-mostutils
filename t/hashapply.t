@@ -6,7 +6,7 @@ no warnings 'once';
 
 use Test::More tests => 2;
 
-use lib '../lib';
+use lib grep { -d } qw(../lib ./lib ./t/lib);
 use Hash::MostUtils qw(hashapply n_apply);
 
 # hashapply

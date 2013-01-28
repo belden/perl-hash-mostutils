@@ -3,9 +3,9 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 4;
 
-use lib grep { -d } qw(../lib ./lib);
+use lib grep { -d } qw(../lib ./lib ./t/lib);
 use Hash::MostUtils qw(lkeys lvalues);
 
 my @list = (0 .. 5);

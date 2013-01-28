@@ -4,16 +4,15 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
 	NAME                => 'Hash::MostUtils',
-	AUTHOR              => q{Belden Lyman <belden@shutterstock.com>},
+	AUTHOR              => q{Belden Lyman <belden@cpan.org>},
 	VERSION_FROM        => 'lib/Hash/MostUtils.pm',
 	ABSTRACT            => 'Pairwise list manipulators',
-	($ExtUtils::MakeMaker::VERSION >= 6.3002
-		? ('LICENSE'=> 'perl')
-		: ()),
-	PREREQ_PM => {
-		'Test::Exception'						=> 0,
-	},
-	LICENSE => 'perl',
+  LICENSE => 'perl',
 	PL_FILES            => {},
+  META_MERGE => {
+    resources => {
+      bugtracker => 'https://github.com/belden/perl-hash-mostutils/issues',
+    },
+  },
 	dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 );
