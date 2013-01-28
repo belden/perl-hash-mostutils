@@ -154,7 +154,20 @@ Hash::MostUtils - Yet another collection of tools for operating pairwise on list
 
 =head1 EXPORTS
 
-By default, none. On request, C<hashmap>, C<hashgrep>, C<n_map>, C<n_grep>, C<lkeys>, C<lvalues>.
+By default, none. On request, any of the following:
+
+  lvalues
+  lkeys
+  leach
+  hash_slice_of
+  hash_slice_by
+  hashmap
+  hashgrep
+  hashapply
+  n_each
+  n_map
+  n_grep
+  n_apply
 
 =head2 n_map N, CODEREF, LIST
 
@@ -268,15 +281,16 @@ If a key in LIST is not present in HASHREF, returns undefined.
 Calls the methods named in LIST on OBJECT and returns a hash of the results.
 (If a method in LIST does not exist on OBJECT, you will get an assertion.)
 
-=head1 AUTHOR
-
-Belden Lyman <belden@cpan.org>
-
 =head1 ACKNOWLEDGEMENTS
 
 The names and behaviors of most of these functions were initially
 developed at AirWave Wireless, Inc. I've re-implemented them here.
 
-=head1 LICENSE
 
-You may use and distribute this software under the same terms as Perl itself.
+=head1 COPYRIGHT AND LICENSE
+
+    (c) 2013 by Belden Lyman
+
+This library is free software: you may redistribute it and/or modify it under the same terms as Perl
+itself; either Perl version 5.8.8 or, at your option, any later version of Perl 5 you may have
+available.
