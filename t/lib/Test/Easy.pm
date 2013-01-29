@@ -2,17 +2,18 @@ use strict;
 use warnings;
 package Test::Easy;
 
+use Cwd ();
+
 sub import {
 	my $class = shift;
-
 	my $caller = caller;
 
-	my $found =
+	my ($found) =
 		grep { -e $_ && $_ !~ m{^\.} }
 		map { "$_/Test/Easy.pm" }
 		@INC;
 
-	if ($found) {
+	if ($found && Cwd::abs_path($found) ne Cwd::abs_path(__FILE__)) {
 		local $@;
 		eval "package $caller; do '$found'";
 		die $@ if $@; # I haven't actually tested this branch yet
@@ -50,7 +51,11 @@ it and happily delegate to the real Test::Easy.
 On the other hand, if you don't have Test::Easy installed, this module will provide
 a small amount of adaptation between what you don't have and what you do have.
 
-=head1 AUTHOR
+=head1 COPYRIGHT AND LICENSE
 
-Belden Lyman <belden@cpan.org>
+    (c) 2013 by Belden Lyman
+
+This library is free software: you may redistribute it and/or modify it under the same terms as Perl
+itself; either Perl version 5.8.8 or, at your option, any later version of Perl 5 you may have
+available.
 

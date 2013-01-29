@@ -3,7 +3,7 @@
 use strict;
 use warnings; no warnings 'once';
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 
 use lib grep { -d } qw(../lib ./lib ./t/lib);
 use Hash::MostUtils qw(leach hashmap n_each n_map);
@@ -48,4 +48,34 @@ use Test::Easy qw(deep_ok);
 	}
 	deep_ok( \@got, [[1, 2]], 'mutating @list updated $leach object' );
 	deep_ok( \@list, [], 'we set @list to ()' );
+}
+
+# Aaron Cohen (morninded) pointed out that the implementation of n_each would allow
+# this to work. Here's a test to lock it down against refactorings.
+{
+	my @list = (
+		a => 1..1,
+		b => 1..2,
+		c => 1..3,
+		d => 1..4,
+		e => 1..5,
+		f => 1..6,
+		g => 1..7,
+	);
+
+	my %hash;
+	my $n = 2;
+	while (my ($k, @v) = n_each $n++, @list) {
+		$hash{$k} = \@v;
+	}
+
+	deep_ok( \%hash, +{
+		a => [1..1],
+		b => [1..2],
+		c => [1..3],
+		d => [1..4],
+		e => [1..5],
+		f => [1..6],
+		g => [1..7],
+	}, 'we can triangle-slice our list' );
 }
