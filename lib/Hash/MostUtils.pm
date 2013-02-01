@@ -9,13 +9,13 @@ use Hash::MostUtils::leach qw(n_each leach);
 our @EXPORT_OK = qw(
   lvalues
   lkeys
-	leach
+  leach
   hash_slice_of
   hash_slice_by
   hashmap
   hashgrep
   hashapply
-	n_each
+  n_each
   n_map
   n_grep
   n_apply
@@ -36,94 +36,94 @@ sub lvalues { local $|; return grep { $|-- == 1 } @_ }
 # I would put n_each() here, but it was imported above
 
 sub n_map ($&@) {
-	# Usually I don't mutate @_. Here I deliberately modify @_ for the upcoming non-obvious goto-&NAME.
-	my $n = shift;
-	my $collector = sub { return $_[0]->() };
-	unshift @_, $collector;
+  # Usually I don't mutate @_. Here I deliberately modify @_ for the upcoming non-obvious goto-&NAME.
+  my $n = shift;
+  my $collector = sub { return $_[0]->() };
+  unshift @_, $collector;
 
-	# Using a "safe goto" allows n_map() to remove itself from the callstack, which allows _n_collect()
-	# to see the correct caller.
-	#
-	# 'perldoc -f goto' for why this is a safe goto.
-	goto &{_n_collect($n)};
+  # Using a "safe goto" allows n_map() to remove itself from the callstack, which allows _n_collect()
+  # to see the correct caller.
+  #
+  # 'perldoc -f goto' for why this is a safe goto.
+  goto &{_n_collect($n)};
 }
 
 sub n_grep ($&@) {
-	my $n = shift;
+  my $n = shift;
 
-	# the comments in n_map() apply here as well.
+  # the comments in n_map() apply here as well.
 
-	my $collector = sub {
-		my ($code, $vals, $aliases) = @_;
-		return $code->() ? @$vals : ();
-	};
-	unshift @_, $collector;
+  my $collector = sub {
+    my ($code, $vals, $aliases) = @_;
+    return $code->() ? @$vals : ();
+  };
+  unshift @_, $collector;
 
-	goto &{_n_collect($n)};
+  goto &{_n_collect($n)};
 }
 
 sub n_apply {
-	my $n = shift;
-	my $collector = sub {
-		my ($code, $vals, $aliases) = @_;
-		$code->();
-		return map { $$_ } @$aliases;
-	};
-	unshift @_, $collector;
+  my $n = shift;
+  my $collector = sub {
+    my ($code, $vals, $aliases) = @_;
+    $code->();
+    return map { $$_ } @$aliases;
+  };
+  unshift @_, $collector;
 
-	goto &{_n_collect($n)};
+  goto &{_n_collect($n)};
 }
 
 sub _n_collect($) {
-	my ($n) = @_;
-	return sub(&@) {
-		my $collector = shift;
-		my $code = shift;
-		if (@_ % $n != 0) {
-			confess("your input is insane: can't evenly slice " . @_ . " elements into $n-sized chunks\n");
-		}
+  my ($n) = @_;
+  return sub(&@) {
+    my $collector = shift;
+    my $code = shift;
+    if (@_ % $n != 0) {
+      confess("your input is insane: can't evenly slice " . @_ . " elements into $n-sized chunks\n");
+    }
 
-		# these'll reserve some namespace back in the callpackage
-		my @n = ('a' .. 'z');
+    # these'll reserve some namespace back in the callpackage
+    my @n = ('a' .. 'z');
 
-		# stash old values back in callpackage *and* in main. If called from main::, this comes down to:
-		#   local ${'main::a'}, ${'main::b'}, ${'main::c'}
-		# when $n is 3.
-		my $caller = caller;
-		no strict 'refs';
-		foreach ((@n[ 0 .. $n-1 ])) {
-			local ${"$caller\::$_"};
-			local ${"::$_"};
-		}
+    # stash old values back in callpackage *and* in main. If called from main::, this comes down to:
+    #   local ${'main::a'}, ${'main::b'}, ${'main::c'}
+    # when $n is 3.
+    my $caller = caller;
+    no strict 'refs';
+    foreach ((@n[ 0 .. $n-1 ])) {
+      local ${"$caller\::$_"};
+      local ${"::$_"};
+    }
 
-		my @out;
-		while (my @chunk = splice @_, 0, $n) {  # build up each set...
-			my @aliases;
-			foreach (0 .. $#chunk) {
-				# ...assign values from @_ back to localized variables in $caller *and* in 'main::'.
-				# Aliasing in main::  allows you to refer to variables $c and onwards as $::c.
-				# Aliasing in $caller allows you to refer to variables $c and onwards as $whatever::package::c.
-				${"::$n[$_]"} = ${"$caller\::$n[$_]"} = $chunk[$_];
+    my @out;
+    while (my @chunk = splice @_, 0, $n) {  # build up each set...
+      my @aliases;
+      foreach (0 .. $#chunk) {
+        # ...assign values from @_ back to localized variables in $caller *and* in 'main::'.
+        # Aliasing in main::  allows you to refer to variables $c and onwards as $::c.
+        # Aliasing in $caller allows you to refer to variables $c and onwards as $whatever::package::c.
+        ${"::$n[$_]"} = ${"$caller\::$n[$_]"} = $chunk[$_];
 
-				# Keep a reference to $::a (etc.) and pass them in to the $collector; this allows $code to mutate
-				# $::a (etc) and signal the changed values back to $collector.
-				push @aliases, \${"::$n[$_]"};
-			}
-			push @out, $collector->($code, \@chunk, \@aliases);             # ...and apply $code.
-		}
+        # Keep a reference to $::a (etc.) and pass them in to the $collector; this allows $code to mutate
+        # $::a (etc) and signal the changed values back to $collector.
+        push @aliases, \${"::$n[$_]"};
+      }
+      push @out, $collector->($code, \@chunk, \@aliases);             # ...and apply $code.
+    }
 
-		return @out;
-	};
+    return @out;
+  };
 }
 
 sub hash_slice_of {
-	my ($ref, @keys) = @_;
-	return map { ($_ => $ref->{$_}) } @keys;
+  my ($ref, @keys) = @_;
+  return map { ($_ => $ref->{$_}) } @keys;
 }
 
 sub hash_slice_by {
-	my ($obj, @methods) = @_;
-	return map { ($_ => scalar($obj->$_)) } @methods;
+  my ($obj, @methods) = @_;
+  return map { ($_ => scalar($obj->$_)) } @methods;
 }
 
 1;
@@ -381,10 +381,6 @@ time I wrote a line like the above I chose to write it as C<$::a> and C<$::b>.
         n_apply 3, sub { $_ *= 3 for $::a, $::b, $::c },
         n_grep  3, sub { $::c > 4 },
         (1..9);                             # @sets = ([12, 15, 18, 21, 24, 27]);
-
-  n_map
-  n_grep
-  n_apply
 
 =head2 n_each N, LIST
 
