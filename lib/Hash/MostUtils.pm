@@ -20,7 +20,59 @@ our @EXPORT_OK = qw(
   n_grep
   n_apply
 );
+
 our $VERSION = 0.04;
+
+# decrementing $| flips it between 0 and 1
+sub lkeys   { local $|; return grep { $|-- == 0 } @_ }
+sub lvalues { local $|; return grep { $|-- == 1 } @_ }
+
+# I would put leach() here, but it was imported above
+
+*hashmap = sub(&@) { unshift @_, 2; goto &n_map };
+*hashgrep = sub(&@) { unshift @_, 2; goto &n_grep };
+*hashapply = sub (&@) { unshift @_, 2; goto &n_apply };
+
+# I would put n_each() here, but it was imported above
+
+sub n_map ($&@) {
+	# Usually I don't mutate @_. Here I deliberately modify @_ for the upcoming non-obvious goto-&NAME.
+	my $n = shift;
+	my $collector = sub { return $_[0]->() };
+	unshift @_, $collector;
+
+	# Using a "safe goto" allows n_map() to remove itself from the callstack, which allows _n_collect()
+	# to see the correct caller.
+	#
+	# 'perldoc -f goto' for why this is a safe goto.
+	goto &{_n_collect($n)};
+}
+
+sub n_grep ($&@) {
+	my $n = shift;
+
+	# the comments in n_map() apply here as well.
+
+	my $collector = sub {
+		my ($code, $vals, $aliases) = @_;
+		return $code->() ? @$vals : ();
+	};
+	unshift @_, $collector;
+
+	goto &{_n_collect($n)};
+}
+
+sub n_apply {
+	my $n = shift;
+	my $collector = sub {
+		my ($code, $vals, $aliases) = @_;
+		$code->();
+		return map { $$_ } @$aliases;
+	};
+	unshift @_, $collector;
+
+	goto &{_n_collect($n)};
+}
 
 sub _n_collect($) {
 	my ($n) = @_;
@@ -64,57 +116,6 @@ sub _n_collect($) {
 	};
 }
 
-sub n_map ($&@) {
-	# Usually I don't mutate @_. Here I deliberately modify @_ for the upcoming non-obvious goto-&NAME.
-	my $n = shift;
-	my $collector = sub { return $_[0]->() };
-	unshift @_, $collector;
-
-	# Using a "safe goto" allows n_map() to remove itself from the callstack, which allows _n_collect()
-	# to see the correct caller.
-	#
-	# 'perldoc -f goto' for why this is a safe goto.
-	goto &{_n_collect($n)};
-}
-
-*hashmap = sub(&@) { unshift @_, 2; goto &n_map };
-
-sub n_grep ($&@) {
-	my $n = shift;
-
-	# the comments in n_map() apply here as well.
-
-	my $collector = sub {
-		my ($code, $vals, $aliases) = @_;
-		return $code->() ? @$vals : ();
-	};
-	unshift @_, $collector;
-
-	goto &{_n_collect($n)};
-}
-
-sub n_apply {
-	my $n = shift;
-	my $collector = sub {
-		my ($code, $vals, $aliases) = @_;
-		$code->();
-		return map { $$_ } @$aliases;
-	};
-	unshift @_, $collector;
-
-	goto &{_n_collect($n)};
-}
-
-# hashgrep BLOCK, LIST is a convenient alias for Hashutils::n_grep(2, CODEREF, LIST);
-*hashgrep = sub(&@) { unshift @_, 2; goto &n_grep };
-
-# hashapply BLOCK, LIST is a convenient alias for Hashutils::n_apply(2, CODEREF, LIST);
-*hashapply = sub (&@) { unshift @_, 2; goto &n_apply };
-
-# decrementing $| flips it between 0 and 1
-sub lkeys   { local $|; return grep { $|-- == 0 } @_ }
-sub lvalues { local $|; return grep { $|-- == 1 } @_ }
-
 sub hash_slice_of {
 	my ($ref, @keys) = @_;
 	return map { ($_ => $ref->{$_}) } @keys;
@@ -122,7 +123,7 @@ sub hash_slice_of {
 
 sub hash_slice_by {
 	my ($obj, @methods) = @_;
-	return map { ($_ => $obj->$_) } @methods;
+	return map { ($_ => scalar($obj->$_)) } @methods;
 }
 
 1;
@@ -134,8 +135,6 @@ __END__
 Hash::MostUtils - Yet another collection of tools for operating pairwise on lists.
 
 =head1 SYNOPSIS
-
-=over 4
 
   my @found_and_transformed =
       hashmap { uc($b) => 100 + $a }
@@ -152,97 +151,187 @@ Hash::MostUtils - Yet another collection of tools for operating pairwise on list
       print "$key => $val\n";
   }
 
+  while (my ($key, $val) = leach @found_and_transformed) {
+      print "$key => $val\n";
+  }
+
 =head1 EXPORTS
 
 By default, none. On request, any of the following:
 
-  lvalues
-  lkeys
-  leach
-  hash_slice_of
-  hash_slice_by
-  hashmap
-  hashgrep
-  hashapply
-  n_each
-  n_map
-  n_grep
-  n_apply
+=head1 FUNCTIONS TO MAKE ARRAYS ACT LIKE HASHES
 
-=head2 n_map N, CODEREF, LIST
+=head2 lkeys LIST
 
-Apply CODEREF to LIST, operating in N-sized chunks. Within the context of CODEREF, values of LIST
-will be selected and aliased. Given N of 5, variable names would be $a, $b, $c, $d, and $e. In order
-to prevent 'strict refs' from complaining, you should write CODEREF to refer to $::a, $::b, $::c,
-$::d, and $::e (for N == 5).
+Return the "keys" of LIST. Perl's C<keys()> keyword only operates on hashes; lkeys() offers
+an approximation of the same functionality for lists.
 
-Actually, that's a lie: it's only $c .. $e that would need to be $::c, $::d, $::e. $a and $b are
-magical to Perl, but the shift from $a and $b to $::c here looks pretty bad:
+    my @evens = lkeys 1..10;
 
-=over 4
+    my @keys  =
+        lkeys                                     # give me back those keys (i.e. the letters)
+        hashgrep { $b > 100 }                     # find key/value pairs where the value is > 100
+        map { $_ => int(rand(1000)) } 'a'..'z';   # turn 'a'..'z' into key/value pairs with random values
 
-  my @transformed = n_map(
-    3,
-    sub { "$a, $b $::c!\n" },
-    qw(goodnight sweet prince goodbye cruel world),
-  );
+The "keys" of a list are the even-positioned items. Note that in the case of an C<E<gt>empty slotE<lt>>
+in a sparse array, the key will be C<undef>.
 
-=back
+=head2 lvalues LIST
 
-LIST must be evenly divisible by N.
+Return the "values" of LIST. Perl's C<values()> keyword only operates on hashes; lvalues() offers
+an approximation of the same functionality for lists.
 
-=head2 hashmap BLOCK, LIST
+    my @odds = lkeys 1..10;
+
+    my @values =
+        lvalues                                  # give me back those values (i.e. the letters)
+        hashgrep { $a > 100 }                    # look for key/value pairs where the key is > 100
+        map { int(rand(1000)) => $_ } 'a'..'z';  # make 26 random keys from 1-1000, with fixed keys
+
+The "values" of a list are the odd-positioned items. Note that in the case of an C<E<gt>empty slotE<lt>>
+in a sparse array, the value will be C<undef>.
+
+=head2 leach ARRAY
+
+Iterate over ARRAY, returning successive "key/value" pairs. This behaves functionally identically to Perl's
+built-in C<each> keyword; however, it operates on arrays.
+
+    my @array = (1..4);
+
+    while (my ($k, $v) = leach @array) {
+        print "$k => $v\n";
+    }
+
+    print "$_\n" for @array;
+
+    __END__
+    1 => 2
+    3 => 4
+    1
+    2
+    3
+    4
+
+Using C<leach> to gather key/value pairs from an array is guaranteed to be non-destructive to that array,
+whereas using C<splice> has the possibly unintended side effect of destroying the array:
+
+    my @array = (1..4);
+
+    while (my ($k, $v) = splice @array, 0, 2) {
+        print "$k => $v\n";
+    }
+
+    print "$_\n" for @array;
+
+    __END__
+    1 => 2
+    3 => 4
+
+
+Note the distinction between saying that this function is
+
+    leach ARRAY
+
+rather than
+
+    leach LIST
+
+Perl does not allow this behavior:
+
+    while (my ($k, $v) = leach 1..10) {                   # can't leach a list, only an array
+        # do something with this key/value tuple
+    }
+
+But don't worry, Perl also doesn't allow for this behavior:
+
+    while (my ($k, $v) = splice 1..10, 0, 2) {            # can't splice a list, only an array
+        # do something with this key/value tuple
+    }
+
+=head1 FUNCTIONS TO OPERATE ON LISTS, ARRAYS, AND HASHES AS TUPLES
+
+C<hashmap>, C<hashgrep>, and C<hashapply> all act like their corresponding C<map>, C<grep>, and
+C<List::Utils::apply> but for one notable exception: whereas C<map>, C<grep>, and C<apply> all
+eat items from the given list one-by-one and assign that current value to $_, C<hashmap>, C<hashgrep>,
+and C<hashapply> all eat items from the given list two-by-two, and assigns them to $a and $b.
+
+The names $a and $b were chosen because they're already in lexical scope in Perl due to C<sort>'s need
+for them.
+
+If you have a singular occurance of $a and $b within your program, you will probably see this warning
+from Perl:
+
+    Name 'main::a' used only once: possible typo at ...
+    Name 'main::b' used only once: possible typo at ...
+
+I've just gotten in the habit of adding:
+
+    use strict;
+    use warnings; no warnings 'once';
+
+when I see that message.
+
+=head2 hashmap BLOCK LIST
+
+This acts similar to
+
+    map BLOCK LIST
+
+with the exception that C<map> eats items off of LIST one at a time, assigning the current value to $_;
+whereas C<hashmap> eats items off of LIST two at a time, assigning the first value to $a and the second
+value to $b.
+
+    # naive transformation of this hash into (101 => 'A', 102 => 'B')
+    my %hash = (
+        a => 1,
+        b => 2,
+    );
+
+    my %transformed =
+        hashmap { $b + 100 => uc($a) }
+        %hash;
+
+
+Just like C<map>, your BLOCK will be called without any arguments. Like perl's keyword C<map>, this
+function maintains the order of LIST.
 
 C<hashmap> is simply a prototyped alias for n_map(2, CODEREF, LIST), so all of the documentation to
 C<n_map> applies here.
 
-"keys" (even-positioned items in LIST) are available as $a. "values" (odd-positioned items in LIST)
-are available as $b.
+=head2 hashgrep BLOCK LIST
 
-Like perl's built-in C<map>, this function maintains the order of LIST.
+This acts similar to
 
-=head2 n_grep N, CODEREF, LIST
+    grep BLOCK LIST
 
-Find items in LIST that match CODEREF, operating in N-sized chunks. Within the context of CODEREF, values
-of LIST will be selected and aliased. Given N of 5, variable names would be $a, $b, $c, $d, and $e. In
-order to prevent 'strict refs' from complaining, you should write CODEREF to refer to $::a, $::b, $::c,
-$::d, and $::e (for N == 5).
+with the exception that C<grep> eats items off of LIST one at a time, assigning the current value to $_;
+whereas C<hashgrep> eats items off of LIST two at a time, assigning the first value to $a and the second
+value to $b.
 
-Actually, that's a lie: it's only $c .. $e that would need to be $::c, $::d, $::e. $a and $b are
-magical to Perl, but the shift from $a and $b to $::c here looks pretty bad:
+    # lame object dumper
+    my $object = Some::Class->new(...);
 
-=over 4
+    my %dump =
+        hashgrep { $a !~ /^_/ && ! ref($b) }   # hide private fields and internal data structures
+        %$object;
 
-  my @found = n_grep(
-    3,
-    sub { $a =~ /good/ && $::c =~ /prince/ },
-    qw(goodnight sweet prince goodbye cruel world),
-  );
-
-  # @found = qw(goodnight sweet prince);
-
-=back
-
-LIST must be evenly divisible by N.
-
-=head2 n_apply N, CODEREF, LIST
-
-Apply CODEREF to LIST, operating in N-sized chunks. See the discussion of C<hashapply>. See also
-variable names as discussed in C<n_map> and C<n_grep>.
-
-=head2 hashgrep BLOCK, LIST
+Just like C<grep>, your BLOCK will be called without any arguments. Like perl's keyword C<grep>,
+this function maintains the order of LIST.
 
 C<hashgrep> is simply a prototyped alias for n_grep(2, CODEREF, LIST), so all of the documentation
 to C<n_grep> applies here.
 
-"keys" (even-positioned items in LIST) are available as $a. "values" (odd-positioned items in LIST)
-are available as $b.
+=head2 hashapply BLOCK LIST
 
-Like perl's built-in C<grep>, this function maintains the order of LIST.
+This is similar to C<List::MoreUtils::apply>:
 
-=head2 hashapply BLOCK, LIST
+    apply BLOCK LIST
 
-Apply BLOCK of code to LIST. apply can be written as map:
+with the usual exception: C<apply> eats items off of LIST one at a time, assigning to $_; whereas
+C<hashapply> eats items off of LIST two at a time, assigning the first value to $a and the second
+value to $b.
+
+Normal C<apply> can be written as map:
 
 =over 4
 
@@ -254,38 +343,231 @@ my @clean2 = apply { tr/aeiou//d } @words;    # @clean2 = qw(ppl bnn chrmy); @wo
 
 =back
 
-Note that C<apply> does not transform the original data, whereas C<map> does.
+Note that C<apply> does not transform the original data, whereas C<map> does. Similarly, C<hashapply> does
+not transform the original data, whereas C<hashmap> might.
 
-Note that C<apply> does not need to explicitly return $_, whereas C<map> does.
+Note that C<apply> does not need to explicitly return $_, whereas C<map> does. Similarly, C<hashapply> does
+not need to explicitly return a key/value tuple ($a, $b), whereas C<hashmap> does need to return something.
 
-C<hashapply> works similar to C<apply> except it processes lists pairwise. Like the other C<hash...> functions,
-this maintains the original order of LIST. Like C<apply>, C<hashapply> will not transform the original LIST.
+Like C<apply>, C<hashapply> will not transform the original LIST.
 
-=head2 lkeys LIST
+=head1 GENERIC N-ARY FORMS OF VARIOUS LIST-WISE FUNCTIONS
 
-Return the "keys" of LIST. perl's built-in keys() function only operates on hashes; lkeys() offers
-the same functionality for lists.
+Each of the pairwise functions mentioned so far - C<leach>, C<hashmap>, C<hashgrep>, C<hashapply> - are
+actually implemented in terms of more generic N-ary forms. This means that if you need to process a list
+in sets of N, where N is E<gt> 2, you may use the n_* forms of these functions.
 
-=head2 lvalues LIST
+Variable naming becomes more interesting when moving beyond 2 items. Whereas $a and $b are always in
+lexical scope, once you go to N of 3, you need to agree on some variable naming convention.
 
-Return the "values" of LIST. perl's built-in values() function only operates on hashes; lvalues() offers
-the same functionality for lists.
+$a and $b work nicely for the first two elements of a list; so $c is the third, and $d the fourth, and
+so on. One limitation of this naming scheme is that you may not easily go beyond N of 26 - but if you
+find yourself needing that, you'll find the code simple to extend.
+
+In order to prevent 'strict refs' from complaining about $c..$z, you'll need to address those variables a
+bit differently:
+
+    my @sets =
+        n_map   6, sub { [$a, $b, $::c, $::d, $::e, $::f] },
+        n_apply 3, sub { $_ *= 3 for $a, $b, $::c },
+        n_grep  3, sub { $::c > 4 },
+        (1..9);                             # @sets = ([12, 15, 18, 21, 24, 27]);
+
+I personally find the transition between C<$b> and C<$::c> to be a bit jarring visually, so the one
+time I wrote a line like the above I chose to write it as C<$::a> and C<$::b>.
+
+    my @sets =
+        n_map   6, sub { [$::a, $::b, $::c, $::d, $::e, $::f] },
+        n_apply 3, sub { $_ *= 3 for $::a, $::b, $::c },
+        n_grep  3, sub { $::c > 4 },
+        (1..9);                             # @sets = ([12, 15, 18, 21, 24, 27]);
+
+  n_map
+  n_grep
+  n_apply
+
+=head2 n_each N, LIST
+
+Iterate over LIST, returning successive "key/values" sets.
+
+    my @list = (1..9);
+
+    while (my ($k, @v) = n_each 3, @list) {
+        # do something with this $k and @v
+    }
+
+There's nothing that says your N needs to remain constant:
+
+    my @list = (
+        a => 1,
+        b => 1, 2,
+        c => 1, 2, 3,
+        d => 1, 2, 3, 4,
+    );
+
+    my $n = 2;
+
+    my %triangle;
+    while (my ($k, @v) = n_each $n++, @list) {
+        $triangle{$k} = \@v;
+    }
+
+    __END__
+    %triangle = (
+        a => [1],
+        b => [1, 2],
+        c => [1, 2, 3],
+        d => [1, 2, 3, 4],
+    );
+
+There's probably something clever that you can do with this that I just don't understand. Please drop me
+a line if you know what it is.
+
+=head2 n_map N, CODEREF, LIST
+
+C<map> CODEREF over LIST, operating in N-sized chunks. Within the context of CODEREF, values of LIST
+will be selected and aliased. LIST must be evenly divisible by N.
+
+See L<GENERIC N-ARY FORMS OF VARIOUS LIST-WISE FUNCTIONS> for a discussion of variable names.
+
+    my @transformed = n_map(
+        3,
+        sub { "$a, $b $::c!\n" },
+        qw(goodnight sweet prince goodbye cruel world),
+    );
+
+    # @transformed = ("goodnight, sweet prince!\n", "goodbye, cruel world!");
+
+
+If you are consistently n_map'ping by some N, then you might consider wrapping n_map so the call
+syntax looks more like one of Perl's functional keywords:
+
+    sub tri_map (&@) { unshift @_, 3; goto &n_map }
+
+    my @transformed =
+        tri_map { "$::a, $::b $::c!\n" }
+        qw(goodnight sweet prince goodbye cruel world);
+
+    # @transformed = ("goodnight, sweet prince!\n", "goodbye, cruel world!");
+
+=head2 n_grep N, CODEREF, LIST
+
+C<grep> for CODEREF over LIST, operating in N-sized chunks. Within the context of CODEREF, values
+of LIST will be selected and aliased. LIST must be evenly divisible by N.
+
+See L<GENERIC N-ARY FORMS OF VARIOUS LIST-WISE FUNCTIONS> for a discussion of variable names.
+
+    my @found = n_grep(
+        3,
+        sub { $a =~ /good/ && $::c =~ /prince/ },
+        qw(goodnight sweet prince goodbye cruel world),
+    );
+
+    # @found = qw(goodnight sweet prince);
+
+Just as with C<n_map>, writing a small bit of gloss to make your N of n_grep work in a functional
+manner is simple, and makes your code more readable:
+
+    sub tri_grep (&@) { unshift @_, 3; goto &n_grep }
+
+    my @found =
+        tri_grep { $::a =~ /good/ && $::c =~ /prince/ }
+        qw(goodnight sweet prince goodbye cruel world);
+
+    # @found = qw(goodnight sweet prince);
+
+=head2 n_apply N, CODEREF, LIST
+
+C<List::Utils::apply> CODEREF to LIST, operating in N-sized chunks. LIST must be evenly divisible by N.
+
+See L<GENERIC N-ARY FORMS OF VARIOUS LIST-WISE FUNCTIONS> for a discussion of variable names.
+
+    my @uppercase = n_apply(
+        3,
+        sub { uc $::c }
+        qw(goodnight sweet prince goodbye cruel world),
+    );
+
+    # @uppercase = qw(goodnight sweet PRINCE goodbye cruel WORLD);
+
+Just as with C<n_map>, writing a small bit of gloss to make your N of n_apply work in a functional
+manner is simple, and makes your code more readable:
+
+    sub tri_apply (&@) { unshift @_, 3; goto &n_apply }
+
+    my @uppercase =
+        tri_apply { uc $::c }
+        qw(goodnight sweet prince goodbye cruel world);
+
+    # @uppercase = qw(goodnight sweet PRINCE goodbye cruel WORLD);
+
+=head1 GRAB BAG
+
+I like these functions, but they're decidedly different from everything up to this point. They
+are mostly used to turn an existing hash reference or object into a smaller representation of
+itself.
 
 =head2 hash_slice_of HASHREF, LIST
 
-Looks into a hash and extracts the values of the keys named in LIST.
+Looks into HASHREF and extracts the key/value pairs of the keys named in LIST.
 If a key in LIST is not present in HASHREF, returns undefined.
+
+    my %hash = (1..10);
+
+    my %slice = hash_slice_of \%hash, qw(5, 7, 9, 11);
+
+    __END__
+    %slice = (
+        5 => 6,
+        7 => 8,
+        9 => 10,
+        11 => undef,
+    );
+
+If you only want to get back key/value pairs for keys in LIST that exist in
+HASHREF, just add a C<hashgrep>:
+
+    my %hash = (1..10);
+
+    my %slice =
+        hashgrep { exists $hash{$a} }
+        hash_slice_of \%hash, qw(5, 7, 9, 11);
+
+    __END__
+    %slice = (
+        5 => 6,
+        7 => 8,
+        9 => 10,
+    );
 
 =head2 hash_slice_by OBJECT, LIST
 
 Calls the methods named in LIST on OBJECT and returns a hash of the results.
-(If a method in LIST does not exist on OBJECT, you will get an assertion.)
+If a method in LIST can not be performed on OBJECT, you will get the standard
+"Can't call method ->... on object" error that Perl throws in this circumstance.
+
+    my $object = ...;
+    my %out = hash_slice_by $object, qw(foo bar baz);
+
+    __END__
+    %out = (
+        foo => 'output of foo',
+        bar => 'output of bar',
+        baz => 'output of baz',
+    );
+
+Note that you may not use C<hash_slice_by> to pass arguments to the methods given
+in LIST. Note too that your methods are invoked in scalar context.
 
 =head1 ACKNOWLEDGEMENTS
 
-The names and behaviors of most of these functions were initially
-developed at AirWave Wireless, Inc. I've re-implemented them here.
+The names and behaviors of most of these functions were initially developed at
+AirWave Wireless, Inc. I've re-implemented them here.
 
+This software would be trapped on my hard drive were it not for Logan Bell's encouragement to
+release it. Separating the personal time I have put into this from the professional time afforded
+by my employer, Shutterstock, Inc. would be very difficult. Thankfully I haven't needed to; when
+I asked to share this, Dan McCormick simply said, "Go for it! Thanks for hacking."
 
 =head1 COPYRIGHT AND LICENSE
 

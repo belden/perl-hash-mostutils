@@ -4,6 +4,9 @@ package Test::Easy;
 
 use Cwd ();
 
+our @EXPORT_OK = qw(deep_ok);  # things the real Test::Easy provides
+our @EXPORT = qw(subtest);     # things this Test::Easy provides as a shim
+
 sub import {
 	my $class = shift;
 	my $caller = caller;
@@ -19,13 +22,47 @@ sub import {
 		die $@ if $@; # I haven't actually tested this branch yet
   } else {
 		no strict 'refs';
-		*{"$caller\::deep_ok"} = \&deep_ok;
+		no warnings 'redefine';
+		my %exportable = map { $_ => 1 } @EXPORT_OK;
+		foreach (@EXPORT, grep { $exportable{$_} } @_) {
+			*{"$caller\::$_"} =*{$_}{CODE};
+		}
 	}
 }
 
 sub deep_ok {
 	require Data::Dumper;
 	Test::More::is_deeply(@_) || Test::More::diag Data::Dumper::Dumper(@_[0,1]);
+}
+
+{
+	my %subtest_warning_already_shown;
+	sub subtest {
+		no strict 'refs';
+		no warnings 'redefine';
+		if (*{'Test::More::subtest'}{CODE}) {
+			*subtest = \&Test::More::subtest;
+			goto &subtest;
+		} else {
+			my $name = shift;
+			my $test = pop;
+			my $caller = caller;
+			Test::More::diag <<UH_OH unless $subtest_warning_already_shown{$caller}++;
+
+Uh-oh, it looks like the test you're running uses
+'subtest', but your version of Test::More doesn't actually
+support subtest. I'm faking out a 'subtest' for you.
+Please just make sure the tests pass - don't worry about
+failures that are solely related to test counts.
+UH_OH
+			Test::More::diag <<RUNNING;
+
+Running $name...
+RUNNING
+			local *{"$caller\::plan"} = sub {};
+			$test->();
+		}
+	}
 }
 
 1;
