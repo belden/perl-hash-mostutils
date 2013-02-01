@@ -14,3 +14,5 @@ t/hashslice.t
 t/leach.t
 t/lib/Test/Easy.pm
 t/sparse.t
+t/hash.t
+t/once.t
