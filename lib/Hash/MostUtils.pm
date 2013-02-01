@@ -6,6 +6,8 @@ use base qw(Exporter);
 use Carp qw(confess);
 use Hash::MostUtils::leach qw(n_each leach);
 
+our $VERSION = 1.01;
+
 our @EXPORT_OK = qw(
   lvalues
   lkeys
@@ -20,8 +22,6 @@ our @EXPORT_OK = qw(
   n_grep
   n_apply
 );
-
-our $VERSION = 0.04;
 
 # decrementing $| flips it between 0 and 1
 sub lkeys   { local $|; return grep { $|-- == 0 } @_ }
