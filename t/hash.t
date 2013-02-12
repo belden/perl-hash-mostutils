@@ -55,14 +55,14 @@ subtest foo => sub {
 subtest rekey => sub {
   plan tests => 3;
 
-	my %start = (1..10, apple => 'red', bear => 'brown');
-	my %rekey = rekey { (apple => 'manzana', bear => 'oso', 7 => 700) } %start;
-	deep_ok( \%rekey, {
-		(hash_slice_of(\%start, qw(1 3 5 9))),
-		700 => 8,
-		manzana => $start{apple},
-		oso => $start{bear},
-	}, 'rekey works' );
+  my %start = (1..10, apple => 'red', bear => 'brown');
+  my %rekey = rekey { (apple => 'manzana', bear => 'oso', 7 => 700) } %start;
+  deep_ok( \%rekey, {
+    (hash_slice_of(\%start, qw(1 3 5 9))),
+    700 => 8,
+    manzana => $start{apple},
+    oso => $start{bear},
+  }, 'rekey works' );
 
   my @start = (1..10, apple => 'red', bear => 'brown');
   my @rekey = rekey { (apple => 'manzana', bear => 'oso', 7 => 700) } @start;

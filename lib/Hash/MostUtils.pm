@@ -130,14 +130,14 @@ sub hash_slice_by {
 }
 
 sub rekey (&@) {
-	my %map = shift()->();
-	return n_map 2, sub { $map{$a} || $a => $b }, @_;
+  my %map = shift()->();
+  return n_map 2, sub { $map{$a} || $a => $b }, @_;
 }
 
 sub reindex (&@) {
-	my %map = shift()->();
-	@_[values %map] = delete @_[keys %map];
-	return @_;
+  my %map = shift()->();
+  @_[values %map] = delete @_[keys %map];
+  return @_;
 }
 
 sub revalue (&@) {
