@@ -17,7 +17,10 @@ use provide (
 
     my $ident = "$data";
 
-    return () if $#{$data} < ($end{$ident} || 0);
+    if ($#{$data} < ($end{$ident} || 0)) {
+      delete $end{$ident};
+      return ();
+    }
 
     $end{$ident} += $n;
     return @{$data}[$end{$ident} - $n .. $end{$ident} - 1];

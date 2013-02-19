@@ -3,7 +3,7 @@
 use strict;
 use warnings; no warnings 'once';
 
-use Test::More tests => 7;
+use Test::More tests => 8;
 
 use lib grep { -d } qw(../lib ./lib ./t/lib);
 use Hash::MostUtils qw(leach hashmap n_each n_map);
@@ -16,6 +16,23 @@ use Test::Easy qw(deep_ok);
     push @got, [$k, $v];
   }
   deep_ok( \@got, [hashmap { [$a, $b] } @list], 'list-each works for arrays' );
+}
+
+# you can leach a list twice and get the same results
+{
+  my @list = (1..10);
+
+  my @got1;
+  while (my ($k, $v) = leach @list) {
+    push @got1, [$k, $v];
+  }
+
+  my @got2;
+  while (my ($k, $v) = leach @list) {
+    push @got2, [$k, $v];
+  }
+
+  deep_ok( \@got2, \@got1, 'list-each works twice in a row' );
 }
 
 # You can't say:
