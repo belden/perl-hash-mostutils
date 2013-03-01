@@ -5,7 +5,8 @@ use warnings; no warnings 'once';
 
 use Test::More tests => 12;
 
-use lib grep { -d } qw(../lib ./lib ./t/lib);
+use FindBin qw($Bin);
+use lib grep { -d } map { "$Bin/$_" } qw(../lib ./lib ./t/lib);
 use Hash::MostUtils qw(leach hashmap n_each n_map);
 use Test::Easy qw(deep_ok);
 
@@ -144,7 +145,6 @@ use Test::Easy qw(deep_ok);
 
   my (%delta, %bravo);
   my $infinite_loop;
-local $MY::var = 1; # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   while (my ($k, $v) = leach $delta_heavy_one) {
     $delta{$k} = $v;
     last if $infinite_loop++ > 50;

@@ -3,17 +3,16 @@
 use strict;
 use warnings; no warnings 'once';
 
-use Test::More; END { done_testing }
+use Test::More tests => 7;
 
-use lib grep { -d } qw(../lib ./lib ./t/lib);
+use FindBin qw($Bin);
+use lib grep { -d } map { "$Bin/$_" } qw(../lib ./lib ./t/lib);
 use Hash::MostUtils qw(n_map n_grep n_apply hashmap hash_slice_of hashgrep hashapply rekey revalue);
 
 use Test::Easy qw(deep_ok);
 
 # sample code from the pod
-subtest from_pod => sub {
-  plan tests => 2;
-
+{
   my @sets =
     n_map   6, sub { [$::a, $::b, $::c, $::d, $::e, $::f] },
     n_apply 3, sub { $_ *= 3 for $::a, $::b, $::c },
@@ -34,12 +33,10 @@ subtest from_pod => sub {
     (1..9);                # @sets = ([12, 15, 18, 21, 24, 27]);
 
   deep_ok( \@sets, [[12, 15, 18, 21, 24, 27]], 'pieces of eight, sets of three, round two: fight!' );
-};
+}
 
 # hash_slice_of
-subtest foo => sub {
-  plan tests => 2;
-
+{
   my %hash = (1..10);
   my %slice =
     hash_slice_of \%hash, qw(5 7 9 11);
@@ -49,12 +46,10 @@ subtest foo => sub {
     hashgrep { exists $hash{$a} }
     hash_slice_of \%hash, qw(5 7 9 11);
   deep_ok( \%slice, {5 => 6, 7 => 8, 9 => 10}, 'only existing keys are in %slice now' );
-};
+}
 
 # rekey and revalue
-subtest rekey => sub {
-  plan tests => 3;
-
+{
   my %start = (1..10, apple => 'red', bear => 'brown');
   my %rekey = rekey { (apple => 'manzana', bear => 'oso', 7 => 700) } %start;
   deep_ok( \%rekey, {
@@ -82,4 +77,4 @@ subtest rekey => sub {
     manzana => 'rojo',
     manzana => 'verde',
   ], 'rekey + revalue for a hash-like list' );
-};
+}

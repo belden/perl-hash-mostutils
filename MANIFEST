@@ -2,7 +2,7 @@ lib/Hash/MostUtils.pm
 lib/Hash/MostUtils/leach.pm
 lib/Hash/MostUtils/leach/v5_08.pm
 lib/Hash/MostUtils/leach/v5_13.pm
-README
+README.pod
 MANIFEST
 MANIFEST.SKIP
 Makefile.PL
