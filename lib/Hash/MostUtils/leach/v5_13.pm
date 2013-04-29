@@ -1,6 +1,7 @@
 use strict;
 use warnings;
-package Hash::MostUtils::leach::v5_13;
+package
+	Hash::MostUtils::leach::v5_13; # don't index me, please
 use base qw(Exporter);
 
 our @EXPORT = qw(leach n_each);

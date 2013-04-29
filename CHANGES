@@ -1,0 +1,2 @@
+v1.06 - broke up 'package' lines in submodules to prevent poor indexing
+v1.05 - version sync between in-house CPAN, github, and real CPAN.

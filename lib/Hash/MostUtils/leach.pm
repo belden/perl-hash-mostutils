@@ -1,6 +1,7 @@
 use strict;
 use warnings;
-package Hash::MostUtils::leach;
+package
+	Hash::MostUtils::leach; # don't index me, please
 
 use provide (
   if    => ge => 5.013 => 'Hash::MostUtils::leach::v5_13',
