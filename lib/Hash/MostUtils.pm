@@ -95,7 +95,6 @@ sub _n_collect($) {
     my $caller = caller;
     no strict 'refs';
     foreach ((@n[ 0 .. $n-1 ])) {
-      local ${"$caller\::$_"};
       local ${"::$_"};
     }
 
