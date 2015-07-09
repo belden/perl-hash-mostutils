@@ -6,7 +6,7 @@ use base qw(Exporter);
 use Carp qw(confess);
 use Hash::MostUtils::leach qw(n_each leach);
 
-our $VERSION = 1.06;
+our $VERSION = 1.07;
 
 our @EXPORT_OK = qw(
   lvalues
@@ -17,6 +17,7 @@ our @EXPORT_OK = qw(
   hashmap
   hashgrep
   hashapply
+  hashsort
   n_each
   n_map
   n_grep
@@ -35,6 +36,21 @@ sub lvalues { local $|; return grep { $|-- == 1 } @_ }
 *hashmap = sub(&@) { unshift @_, 2; goto &n_map };
 *hashgrep = sub(&@) { unshift @_, 2; goto &n_grep };
 *hashapply = sub (&@) { unshift @_, 2; goto &n_apply };
+
+sub hashsort (&@) {
+  my $sort = shift;
+
+  my $caller = caller;
+  no strict 'refs';
+
+  return
+    map { ($_->{key} => $_->{value}) }
+    sort {
+      local (${"$caller\::a"}, ${"$caller\::b"}) = ($a, $b);
+      $sort->();
+    }
+    &hashmap(sub { +{key => $a, value => $b} }, @_);
+}
 
 # I would put n_each() here, but it was imported above
 
@@ -109,7 +125,7 @@ sub _n_collect($) {
 
         # Keep a reference to $::a (etc.) and pass them in to the $collector; this allows $code to mutate
         # $::a (etc) and signal the changed values back to $collector.
-        push @aliases, \${"::$n[$_]"};
+        push @aliases, \$ {"::$n[$_]"};
       }
       push @out, $collector->($code, \@chunk, \@aliases);             # ...and apply $code.
     }
@@ -176,6 +192,8 @@ This module provides a number of functions for processing hashes as lists of key
   while (my ($key, $val) = leach @found_and_transformed) {
       print "$key => $val\n";
   }
+
+  my $serialized = join ',', hashsort { $a->{key} cmp $b->{key} } %hash;
 
 =head1 EXPORTS
 
@@ -374,11 +392,38 @@ not need to explicitly return a key/value tuple ($a, $b), whereas C<hashmap> doe
 
 Like C<apply>, C<hashapply> will not transform the original LIST.
 
+=head2 hashsort BLOCK LIST
+
+Sort LIST by BLOCK, handling two tuples at a time. $a and $b will each have the form:
+
+    $a = +{key => ..., value => ...};
+    $b = +{key => ..., value => ...};
+
+This call:
+
+    my %hash = (a => 1, n => 14, m => 13, b => 2, z => 26);
+    my @sorted =
+      hashsort { $b->{key} cmp $a->{key} }
+      %hash;
+
+Is equivalent to this:
+
+    my %hash = (a => 1, n => 14, m => 13, b => 2, z => 26);
+
+    my @sorted =
+      map { ($_->{key} => $_->{value}) }
+      sort { $b->{key} cmp $a->{key} }
+      map { +{key => $_, value => $hash{$_} }
+      keys %hash;
+
+C<hashsort> is the C<sort>-body of a Schwartzian transform over a list of tuples.
+
 =head1 GENERIC N-ARY FORMS OF VARIOUS LIST-WISE FUNCTIONS
 
-Each of the pairwise functions mentioned so far - C<leach>, C<hashmap>, C<hashgrep>, C<hashapply> - are
-actually implemented in terms of more generic N-ary forms. This means that if you need to process a list
-in sets of N, where N is E<gt> 2, you may use the n_* forms of these functions.
+With the exception of C<hashsort>, each of the pairwise functions mentioned so far - C<leach>,
+C<hashmap>, C<hashgrep>, C<hashapply> - are actually implemented in terms of more generic N-ary
+forms. This means that if you need to process a list in sets of N, where N is E<gt> 2, you may
+use the n_* forms of these functions.
 
 Variable naming becomes more interesting when moving beyond 2 items. Whereas $a and $b are always in
 lexical scope, once you go to N of 3, you need to agree on some variable naming convention.
