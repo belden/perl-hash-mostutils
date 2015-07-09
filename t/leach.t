@@ -107,14 +107,15 @@ use Hash::MostUtils qw(leach hashmap n_each n_map);
 
 # what happens if we mutate the subject data structure?
 {
-  my %hash = (1..4);
-  while (my ($k, $v) = leach %hash) {
-    $hash{$v} = $k;
+  my @got;
+  foreach (1..100) {
+    my %hash = (1..4);
+    while (my ($k, $v) = leach %hash) {
+      $hash{$v} = $k;
+    }
+    push @got, \%hash;
   }
-  is_deeply( \%hash, +{
-    (1..4),
-    (reverse 1..4),
-  }, 'mutating the subject data structure is a-okay' );
+  is_deeply( \@got, [(+{1 => 2, 2 => 1, 3 => 4, 4 => 3}) x 100], 'mutating is okay' );
 }
 
 # we use refaddr, not "", to get an $ident for our subject data structure
