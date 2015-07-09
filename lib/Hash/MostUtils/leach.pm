@@ -12,6 +12,7 @@ use Scalar::Util qw(refaddr);
 
 {
   my %end;
+  my %size;
 
   # n-ary each for lists
   sub _n_each {
@@ -23,6 +24,16 @@ use Scalar::Util qw(refaddr);
     # does it look hashlike? cast to an array ref for indexing.
     $data = [ %$data ] if
       do { local $@; eval { scalar keys %$data; 1 } };
+
+    # did the size change? if so, zero out our %end
+    if (exists $size{$ident}) {
+      if ($size{$ident} != $#{$data}) {
+	$size{$ident} = $#{$data};
+	$end{$ident} = 0;
+      }
+    } else {
+      $size{$ident} = $#{$data};
+    }
 
     if ($#{$data} < ($end{$ident} || 0)) {
       delete $end{$ident};

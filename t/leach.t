@@ -3,7 +3,7 @@
 use strict;
 use warnings; no warnings 'once';
 
-use Test::More tests => 12;
+use Test::More tests => 10;
 
 use FindBin qw($Bin);
 use lib grep { -d } map { "$Bin/$_" } qw(../lib ./lib ./t/lib);
@@ -33,18 +33,6 @@ use Hash::MostUtils qw(leach hashmap n_each n_map);
   }
 
   is_deeply( \@got2, \@got1, 'list-each works twice in a row' );
-}
-
-# You can't say:
-#    my ($first, $second) = leach 'a'..'f';
-# But don't worry, you also can't say:
-#    my @one_to_ten = splice 'b'..'f', 0, 0, 'a';
-{
-  local $. = 0; # the following splice() causes a bogus uninitialized-$. warning
-  my $splice_error = do { local $@; eval q{ () = splice 2..10, 0, 0, 10 }; $@ };
-  my $leach_error  = do { local $@; eval q{ () = leach 1..2 }; $@ };
-  like( $splice_error, qr/(?:must be|ARRAY ref)/, 'got some error about array references to splice' );
-  like( $leach_error, qr/(?:must be|ARRAY ref)/, 'got some error about array references to leach' );
 }
 
 {
@@ -119,14 +107,15 @@ use Hash::MostUtils qw(leach hashmap n_each n_map);
 
 # what happens if we mutate the subject data structure?
 {
-  my %hash = (1..4);
-  while (my ($k, $v) = leach %hash) {
-    $hash{$v} = $k;
+  my @got;
+  foreach (1..100) {
+    my %hash = (1..4);
+    while (my ($k, $v) = leach %hash) {
+      $hash{$v} = $k;
+    }
+    push @got, \%hash;
   }
-  is_deeply( \%hash, +{
-    (1..4),
-    (reverse 1..4),
-  }, 'mutating the subject data structure is a-okay' );
+  is_deeply( \@got, [(+{1 => 2, 2 => 1, 3 => 4, 4 => 3}) x 100], 'mutating is okay' );
 }
 
 # we use refaddr, not "", to get an $ident for our subject data structure
