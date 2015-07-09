@@ -19,3 +19,4 @@ t/array.t
 LICENSE
 lib/Hash/MostUtils/leach/v5_10.pm
 Changes
+t/hashsort.t
