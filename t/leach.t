@@ -3,7 +3,7 @@
 use strict;
 use warnings; no warnings 'once';
 
-use Test::More tests => 12;
+use Test::More tests => 10;
 
 use FindBin qw($Bin);
 use lib grep { -d } map { "$Bin/$_" } qw(../lib ./lib ./t/lib);
@@ -33,18 +33,6 @@ use Hash::MostUtils qw(leach hashmap n_each n_map);
   }
 
   is_deeply( \@got2, \@got1, 'list-each works twice in a row' );
-}
-
-# You can't say:
-#    my ($first, $second) = leach 'a'..'f';
-# But don't worry, you also can't say:
-#    my @one_to_ten = splice 'b'..'f', 0, 0, 'a';
-{
-  local $. = 0; # the following splice() causes a bogus uninitialized-$. warning
-  my $splice_error = do { local $@; eval q{ () = splice 2..10, 0, 0, 10 }; $@ };
-  my $leach_error  = do { local $@; eval q{ () = leach 1..2 }; $@ };
-  like( $splice_error, qr/(?:must be|ARRAY ref)/, 'got some error about array references to splice' );
-  like( $leach_error, qr/(?:must be|ARRAY ref)/, 'got some error about array references to leach' );
 }
 
 {
