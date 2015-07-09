@@ -152,6 +152,10 @@ __END__
 
 Hash::MostUtils - Yet another collection of tools for operating pairwise on lists.
 
+=head1 DESCRIPTION
+
+This module provides a number of functions for processing hashes as lists of key, value pairs.
+
 =head1 SYNOPSIS
 
   my @found_and_transformed =
