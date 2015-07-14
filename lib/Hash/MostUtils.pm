@@ -6,7 +6,7 @@ use base qw(Exporter);
 use Carp qw(confess);
 use Hash::MostUtils::leach qw(n_each leach);
 
-our $VERSION = 1.07;
+our $VERSION = 1.08;
 
 our @EXPORT_OK = qw(
   lvalues
@@ -18,6 +18,8 @@ our @EXPORT_OK = qw(
   hashgrep
   hashapply
   hashsort
+  hashmerge
+  hashreduce
   n_each
   n_map
   n_grep
@@ -50,6 +52,59 @@ sub hashsort (&@) {
       $sort->();
     }
     &hashmap(sub { +{key => $a, value => $b} }, @_);
+}
+
+sub hashmerge {
+  my @merged;
+  my $index = 1;
+  my %index;
+
+  # There's a bit of bookkeeping here because I've found these types of
+  # functions are most useful when they preserve the original input order.
+  while (my ($k, $v) = splice @_, 0, 2) {
+    if (! $index{$k}) {
+      push @merged, $k, [$v];
+      $index{$k} = $index;
+      $index += 2;
+    } else {
+      push @{$merged[$index{$k}]}, $v;
+    }
+  }
+
+  return @merged;
+}
+
+# hashreduce BLOCK LIST
+#
+# call BLOCK against LIST
+# LIST is treated as a list of tuples, i.e. key/value pairs
+# The tuples in LIST are collected together by key into a SUB-LIST
+# Each SUB-LIST is then successively reduced using BLOCK.
+# Like C<List::Util::reduce>, the first invocation of BLOCK will
+# set $a and $b to the first two members of SUB-LIST. Subsequent
+# calls set $a to the value of the previous invocation of BLOCK, and
+# $b to the next member of SUB-LIST.
+#
+# Original input order is preserved.
+sub hashreduce (&@) {
+  my $reduce = shift;
+
+  my $caller = caller;
+
+  my @out;
+
+  my @flat = hashmerge(@_);
+  while (my ($key, $values) = splice @flat, 0, 2) {
+    my $last_val = shift @$values;
+    foreach my $this_val (@$values) {
+      no strict 'refs';
+      local (${"$caller\::a"}, ${"$caller\::b"}) = ($last_val, $this_val);
+      $last_val = $reduce->();
+    }
+    push @out, ($key => $last_val);
+  }
+
+  return @out;
 }
 
 # I would put n_each() here, but it was imported above
